@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 
 const API_URL =
-  "https://opulent-palm-tree-r7pgg5vqp56xh64q-5000.app.github.dev/api/students";
-
+  "http://localhost:5000/api/students";
 function App() {
   const [students, setStudents] = useState([]);
 
-  // State cho form
+  // State form
   const [studentId, setStudentId] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -14,16 +13,21 @@ function App() {
   // ID của sinh viên đang sửa
   const [editingId, setEditingId] = useState(null);
 
+  // Reset form về trạng thái ban đầu
+  const resetForm = () => {
+    setEditingId(null);
+    setStudentId("");
+    setName("");
+    setEmail("");
+  };
+
   // =========================
   // LẤY DANH SÁCH SINH VIÊN
   // =========================
   const fetchStudents = async () => {
     try {
       const response = await fetch(API_URL);
-
-      if (!response.ok) {
-        throw new Error("Không thể lấy danh sách sinh viên");
-      }
+      if (!response.ok) throw new Error("Không thể lấy danh sách sinh viên");
 
       const data = await response.json();
       setStudents(data);
@@ -42,107 +46,76 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const studentData = { studentId, name, email };
+
     try {
-      // =========================
-      // CÂU 61: CẬP NHẬT
-      // =========================
+      // 1. CẬP NHẬT (PUT)
       if (editingId) {
         const response = await fetch(`${API_URL}/${editingId}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            studentId,
-            name,
-            email,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(studentData),
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-          console.error("Lỗi cập nhật:", data);
           alert(data.message || "Cập nhật thất bại");
           return;
         }
 
-        // Cập nhật sinh viên trên giao diện
+        // Đảm bảo dữ liệu UI được cập nhật đúng dạng object sinh viên
+        const updatedStudent = data.student || data; // dự phòng backend trả về { student: {...} }
         setStudents(
-          students.map((student) =>
-            student._id === editingId ? data : student
+          students.map((item) =>
+            item._id === editingId ? { ...item, ...studentData, ...updatedStudent } : item
           )
         );
 
         alert("Cập nhật sinh viên thành công!");
-
-        // Reset form
-        setEditingId(null);
-        setStudentId("");
-        setName("");
-        setEmail("");
-
+        resetForm();
         return;
       }
 
-      // =========================
-      // CÂU 49: THÊM SINH VIÊN
-      // =========================
+      // 2. THÊM MỚI (POST)
       const response = await fetch(API_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          studentId,
-          name,
-          email,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(studentData),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        console.error("Lỗi thêm:", data);
         alert(data.message || "Thêm sinh viên thất bại");
         return;
       }
 
-      // Thêm sinh viên mới vào danh sách
-      setStudents([...students, data]);
+      const newStudent = data.student || data;
+      setStudents([...students, newStudent]);
 
       alert("Thêm sinh viên thành công!");
-
-      // Xóa nội dung form
-      setStudentId("");
-      setName("");
-      setEmail("");
+      resetForm();
     } catch (error) {
       console.error("Lỗi:", error);
     }
   };
 
   // =========================
-  // CÂU 61: BẤM NÚT SỬA
+  // CHỌN SINH VIÊN ĐỂ SỬA
   // =========================
   const handleEdit = (student) => {
     setEditingId(student._id);
-    setStudentId(student.studentId.trim());
-    setName(student.name);
-    setEmail(student.email);
+    setStudentId(student.studentId ? String(student.studentId).trim() : "");
+    setName(student.name || "");
+    setEmail(student.email || "");
   };
 
   // =========================
-  // CÂU 62: XÓA SINH VIÊN
+  // XÓA SINH VIÊN
   // =========================
   const handleDelete = async (id) => {
-    const confirmDelete = window.confirm(
-      "Bạn có chắc muốn xóa sinh viên này không?"
-    );
-
-    if (!confirmDelete) {
-      return;
-    }
+    if (!window.confirm("Bạn có chắc muốn xóa sinh viên này không?")) return;
 
     try {
       const response = await fetch(`${API_URL}/${id}`, {
@@ -152,42 +125,29 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error("Lỗi xóa:", data);
         alert(data.message || "Xóa thất bại");
         return;
       }
 
-      // Xóa khỏi danh sách trên giao diện
-      setStudents(
-        students.filter((student) => student._id !== id)
-      );
+      // Cập nhật giao diện
+      setStudents(students.filter((student) => student._id !== id));
+
+      // Nếu đang sửa đúng sinh viên bị xóa thì reset form
+      if (editingId === id) {
+        resetForm();
+      }
 
       alert("Xóa sinh viên thành công!");
     } catch (error) {
-      console.error("Lỗi:", error);
+      console.error("Lỗi xóa:", error);
     }
-  };
-
-  // =========================
-  // HỦY CHẾ ĐỘ SỬA
-  // =========================
-  const handleCancel = () => {
-    setEditingId(null);
-    setStudentId("");
-    setName("");
-    setEmail("");
   };
 
   return (
     <div>
       <h1>Danh sách sinh viên</h1>
 
-      {/* =========================
-          FORM
-      ========================= */}
-      <h2>
-        {editingId ? "Cập nhật sinh viên" : "Thêm sinh viên"}
-      </h2>
+      <h2>{editingId ? "Cập nhật sinh viên" : "Thêm sinh viên"}</h2>
 
       <form onSubmit={handleSubmit}>
         <input
@@ -195,28 +155,27 @@ function App() {
           placeholder="MSSV"
           value={studentId}
           onChange={(e) => setStudentId(e.target.value)}
+          required
         />
-
         <input
           type="text"
           placeholder="Họ tên"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          required
         />
-
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          required
         />
 
-        <button type="submit">
-          {editingId ? "Cập nhật" : "Thêm sinh viên"}
-        </button>
+        <button type="submit">{editingId ? "Cập nhật" : "Thêm sinh viên"}</button>
 
         {editingId && (
-          <button type="button" onClick={handleCancel}>
+          <button type="button" onClick={resetForm}>
             Hủy
           </button>
         )}
@@ -224,33 +183,14 @@ function App() {
 
       <hr />
 
-      {/* =========================
-          DANH SÁCH SINH VIÊN
-      ========================= */}
       {students.map((student) => (
         <div key={student._id}>
-          <p>
-            <strong>Mã SV:</strong> {student.studentId}
-          </p>
+          <p><strong>Mã SV:</strong> {student.studentId}</p>
+          <p><strong>Họ tên:</strong> {student.name}</p>
+          <p><strong>Email:</strong> {student.email}</p>
 
-          <p>
-            <strong>Họ tên:</strong> {student.name}
-          </p>
-
-          <p>
-            <strong>Email:</strong> {student.email}
-          </p>
-
-          {/* Nút Sửa - Câu 61 */}
-          <button onClick={() => handleEdit(student)}>
-            Sửa
-          </button>
-
-          {/* Nút Xóa - Câu 62 */}
-          <button onClick={() => handleDelete(student._id)}>
-            Xóa
-          </button>
-
+          <button onClick={() => handleEdit(student)}>Sửa</button>
+          <button onClick={() => handleDelete(student._id)}>Xóa</button>
           <hr />
         </div>
       ))}
