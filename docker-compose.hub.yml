@@ -1,4 +1,3 @@
-
 services:
   backend:
     image: nhuy237404/mern-backend:1.0
@@ -11,6 +10,6 @@ services:
   frontend:
     image: nhuy237404/mern-frontend:1.0
     ports:
-      - "3000:3000"
+      - "3000:4173"
     depends_on:
       - backend
