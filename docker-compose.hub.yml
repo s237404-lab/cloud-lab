@@ -1,3 +1,8 @@
 services:
   backend:
     image: s237404/mern-backend:1.0
+        ports:
+      - "5000:5000"
+
+  frontend:
+    image: s237404/mern-frontend:1.0
