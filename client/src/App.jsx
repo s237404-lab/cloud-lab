@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api/students`;
+const API_URL = "https://mern-backend-237404.onrender.com/api/students";
 function App() {
   const [students, setStudents] = useState([]);
 
