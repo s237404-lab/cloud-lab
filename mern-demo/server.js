@@ -1,3 +1,4 @@
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -5,11 +6,35 @@ require("dotenv").config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// ==========================================
+// 1. MIDDLEWARE - CẤU HÌNH CORS CHO PRODUCTION
+// ==========================================
+
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "http://localhost:5173",
+  "http://localhost:3000"
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Cho phép request không có Origin
+    // hoặc Origin nằm trong danh sách cho phép
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 
-// Schema & Model
+// ==========================================
+// 2. SCHEMA & MODEL SINH VIÊN
+// ==========================================
+
 const studentSchema = new mongoose.Schema({
   studentId: {
     type: String,
@@ -27,7 +52,10 @@ const studentSchema = new mongoose.Schema({
 
 const Student = mongoose.model("Student", studentSchema);
 
-// 1. GET - Lấy danh sách sinh viên
+// ==========================================
+// 3. GET - LẤY DANH SÁCH SINH VIÊN
+// ==========================================
+
 app.get("/api/students", async (req, res) => {
   try {
     const students = await Student.find();
@@ -39,7 +67,10 @@ app.get("/api/students", async (req, res) => {
   }
 });
 
-// 2. POST - Thêm sinh viên
+// ==========================================
+// 4. POST - THÊM SINH VIÊN
+// ==========================================
+
 app.post("/api/students", async (req, res) => {
   try {
     const student = await Student.create(req.body);
@@ -52,7 +83,10 @@ app.post("/api/students", async (req, res) => {
   }
 });
 
-// 3. PUT - Cập nhật sinh viên
+// ==========================================
+// 5. PUT - CẬP NHẬT SINH VIÊN
+// ==========================================
+
 app.put("/api/students/:id", async (req, res) => {
   try {
     const updated = await Student.findByIdAndUpdate(
@@ -78,7 +112,10 @@ app.put("/api/students/:id", async (req, res) => {
   }
 });
 
-// 4. DELETE - Xóa sinh viên
+// ==========================================
+// 6. DELETE - XÓA SINH VIÊN
+// ==========================================
+
 app.delete("/api/students/:id", async (req, res) => {
   try {
     const deleted = await Student.findByIdAndDelete(req.params.id);
@@ -99,7 +136,10 @@ app.delete("/api/students/:id", async (req, res) => {
   }
 });
 
-// Kết nối MongoDB rồi mới chạy Server
+// ==========================================
+// 7. KẾT NỐI MONGODB ATLAS VÀ CHẠY SERVER
+// ==========================================
+
 const PORT = process.env.PORT || 5000;
 
 mongoose
