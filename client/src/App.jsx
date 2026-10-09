@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
-const API_URL =
-  "https://opulent-palm-tree-r7pgg5vqp56xh64q-5000.app.github.dev/api/students";
+const API_URL = "https://mern-backend-237404.onrender.com/api/students";
 
 function App() {
   const [students, setStudents] = useState([]);
