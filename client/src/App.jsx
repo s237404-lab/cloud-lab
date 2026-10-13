@@ -1,18 +1,19 @@
+
 import { useEffect, useState } from "react";
 
-const API_URL = "https://mern-backend-237404.onrender.com/api/students";
+const API_URL =
+  "https://mern-backend-237404.onrender.com/api/students";
+
 function App() {
   const [students, setStudents] = useState([]);
-
-  // State form
   const [studentId, setStudentId] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-
-  // ID của sinh viên đang sửa
   const [editingId, setEditingId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Reset form về trạng thái ban đầu
+  // Làm mới form
   const resetForm = () => {
     setEditingId(null);
     setStudentId("");
@@ -20,18 +21,29 @@ function App() {
     setEmail("");
   };
 
-  // =========================
-  // LẤY DANH SÁCH SINH VIÊN
-  // =========================
+  // Lấy danh sách sinh viên
   const fetchStudents = async () => {
     try {
+      setLoading(true);
+      setError("");
+
       const response = await fetch(API_URL);
-      if (!response.ok) throw new Error("Không thể lấy danh sách sinh viên");
+
+      if (!response.ok) {
+        throw new Error("Không thể tải danh sách sinh viên.");
+      }
 
       const data = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error("Dữ liệu sinh viên trả về không hợp lệ.");
+      }
+
       setStudents(data);
-    } catch (error) {
-      console.error("Lỗi lấy danh sách:", error);
+    } catch (err) {
+      setError(err.message || "Lỗi kết nối máy chủ.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -39,82 +51,79 @@ function App() {
     fetchStudents();
   }, []);
 
-  // =========================
-  // THÊM / CẬP NHẬT SINH VIÊN
-  // =========================
+  // Thêm hoặc cập nhật sinh viên
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const studentData = { studentId, name, email };
+    const studentData = {
+      studentId: studentId.trim(),
+      name: name.trim(),
+      email: email.trim(),
+    };
+
+    if (
+      !studentData.studentId ||
+      !studentData.name ||
+      !studentData.email
+    ) {
+      alert("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
 
     try {
-      // 1. CẬP NHẬT (PUT)
-      if (editingId) {
-        const response = await fetch(`${API_URL}/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(studentData),
-        });
+      const isEditing = Boolean(editingId);
+      const url = isEditing
+        ? `${API_URL}/${editingId}`
+        : API_URL;
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          alert(data.message || "Cập nhật thất bại");
-          return;
-        }
-
-        // Đảm bảo dữ liệu UI được cập nhật đúng dạng object sinh viên
-        const updatedStudent = data.student || data; // dự phòng backend trả về { student: {...} }
-        setStudents(
-          students.map((item) =>
-            item._id === editingId ? { ...item, ...studentData, ...updatedStudent } : item
-          )
-        );
-
-        alert("Cập nhật sinh viên thành công!");
-        resetForm();
-        return;
-      }
-
-      // 2. THÊM MỚI (POST)
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch(url, {
+        method: isEditing ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(studentData),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.message || "Thêm sinh viên thất bại");
-        return;
+        throw new Error(
+          data.message ||
+            (isEditing
+              ? "Cập nhật sinh viên thất bại."
+              : "Thêm sinh viên thất bại.")
+        );
       }
 
-      const newStudent = data.student || data;
-      setStudents([...students, newStudent]);
+      alert(
+        isEditing
+          ? "Cập nhật sinh viên thành công!"
+          : "Thêm sinh viên thành công!"
+      );
 
-      alert("Thêm sinh viên thành công!");
       resetForm();
-    } catch (error) {
-      console.error("Lỗi:", error);
+      await fetchStudents();
+    } catch (err) {
+      alert(err.message || "Không thể kết nối máy chủ.");
     }
   };
 
-  // =========================
-  // CHỌN SINH VIÊN ĐỂ SỬA
-  // =========================
+  // Chọn sinh viên cần sửa
   const handleEdit = (student) => {
     setEditingId(student._id);
-    setStudentId(student.studentId ? String(student.studentId).trim() : "");
+    setStudentId(String(student.studentId || ""));
     setName(student.name || "");
     setEmail(student.email || "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // =========================
-  // XÓA SINH VIÊN
-  // =========================
+  // Xóa sinh viên
   const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa sinh viên này không?")) return;
+    const confirmed = window.confirm(
+      "Bạn có chắc muốn xóa sinh viên này không?"
+    );
+
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`${API_URL}/${id}`, {
@@ -124,29 +133,33 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.message || "Xóa thất bại");
-        return;
+        throw new Error(data.message || "Xóa sinh viên thất bại.");
       }
 
-      // Cập nhật giao diện
-      setStudents(students.filter((student) => student._id !== id));
+      setStudents((current) =>
+        current.filter((student) => student._id !== id)
+      );
 
-      // Nếu đang sửa đúng sinh viên bị xóa thì reset form
       if (editingId === id) {
         resetForm();
       }
 
       alert("Xóa sinh viên thành công!");
-    } catch (error) {
-      console.error("Lỗi xóa:", error);
+    } catch (err) {
+      alert(err.message || "Không thể kết nối máy chủ.");
     }
   };
 
   return (
-    <div>
-      <h1>Danh sách sinh viên - Version 2.0</h1>
+    <div className="app">
+      <h1>Danh sách sinh viên</h1>
+      <p className="version-label">
+        Phiên bản ứng dụng: v2.0
+      </p>
 
-      <h2>{editingId ? "Cập nhật sinh viên" : "Thêm sinh viên"}</h2>
+      <h2>
+        {editingId ? "Cập nhật sinh viên" : "Thêm sinh viên"}
+      </h2>
 
       <form onSubmit={handleSubmit}>
         <input
@@ -156,6 +169,7 @@ function App() {
           onChange={(e) => setStudentId(e.target.value)}
           required
         />
+
         <input
           type="text"
           placeholder="Họ tên"
@@ -163,6 +177,7 @@ function App() {
           onChange={(e) => setName(e.target.value)}
           required
         />
+
         <input
           type="email"
           placeholder="Email"
@@ -171,7 +186,9 @@ function App() {
           required
         />
 
-        <button type="submit">{editingId ? "Cập nhật" : "Thêm sinh viên"}</button>
+        <button type="submit">
+          {editingId ? "Cập nhật" : "Thêm sinh viên"}
+        </button>
 
         {editingId && (
           <button type="button" onClick={resetForm}>
@@ -182,17 +199,54 @@ function App() {
 
       <hr />
 
-      {students.map((student) => (
-        <div key={student._id}>
-          <p><strong>Mã SV:</strong> {student.studentId}</p>
-          <p><strong>Họ tên:</strong> {student.name}</p>
-          <p><strong>Email:</strong> {student.email}</p>
+      <h2>Danh sách sinh viên ({students.length})</h2>
 
-          <button onClick={() => handleEdit(student)}>Sửa</button>
-          <button onClick={() => handleDelete(student._id)}>Xóa</button>
-          <hr />
+      {loading && <p>Đang tải danh sách sinh viên...</p>}
+
+      {!loading && error && (
+        <div>
+          <p role="alert">{error}</p>
+          <button type="button" onClick={fetchStudents}>
+            Thử tải lại
+          </button>
         </div>
-      ))}
+      )}
+
+      {!loading && !error && students.length === 0 && (
+        <p>Chưa có sinh viên nào.</p>
+      )}
+
+      {!loading &&
+        !error &&
+        students.map((student) => (
+          <div key={student._id}>
+            <p>
+              <strong>Mã SV:</strong> {student.studentId}
+            </p>
+            <p>
+              <strong>Họ tên:</strong> {student.name}
+            </p>
+            <p>
+              <strong>Email:</strong> {student.email}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => handleEdit(student)}
+            >
+              Sửa
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleDelete(student._id)}
+            >
+              Xóa
+            </button>
+
+            <hr />
+          </div>
+        ))}
     </div>
   );
 }
